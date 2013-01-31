@@ -11,3 +11,5 @@ $(OUT): $(OBJ)
 clean:
 	-rm -fv $(OBJ) $(OUT) *.txt
 
+all:
+	make run

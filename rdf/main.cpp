@@ -2,6 +2,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <cmath>
+#include <cstring>
 
 using namespace std;
 
@@ -24,23 +25,22 @@ stuff readOutTypesTxt(char *filename, char *first, char *second)
   }
 
   double dimensions[6];
-  file >> dimensions[0] >> dimensions[1] >> dimensions[2] >> dimensions[3] >> dimensions[4] >> dimensions[5]; 
+  file >> dimensions[0] >> dimensions[1] >> dimensions[2] >> dimensions[3]
+      >> dimensions[4] >> dimensions[5];
 
-  double span[3] = {
-    dimensions[1] - dimensions[0],
-    dimensions[3] - dimensions[2],
-    dimensions[5] - dimensions[4]
-  };
+  double span[3] =
+  { dimensions[1] - dimensions[0], dimensions[3] - dimensions[2], dimensions[5]
+      - dimensions[4] };
 
   stuff some;
   some.V = span[0] * span[1] * span[2];
-  some.delta_r = 0.02;  // Angstrom
+  some.delta_r = 0.02; // Angstrom
   some.a_num = some.b_num = 0;
 
   char type[64];
   int atomcount;
 
-  for (; !file.eof(); )
+  for (; !file.eof();)
   {
     file >> type >> atomcount;
     if (!strcmp(type, first))
@@ -59,7 +59,7 @@ stuff readOutTypesTxt(char *filename, char *first, char *second)
       break;
     }
   }
-  
+
   if (some.a_num == 0 || some.b_num == 0)
   {
     throw runtime_error("some number not found");
@@ -84,7 +84,7 @@ void printRDF(char *filename, stuff some)
 
   file >> current;
 
-  for (; !file.eof() ;)
+  for (; !file.eof();)
   {
     cout << r << "\t" << rdf << endl;
     rdf = 0.0;
@@ -100,7 +100,7 @@ void printRDF(char *filename, stuff some)
       }
     }
 
-    rdf /= 4 * M_PI * some.b_rho * r*r / some.delta_r;
+    rdf /= 4 * M_PI * some.b_rho * r * r / some.delta_r;
   }
 
   cout << r << "\t" << rdf << endl;
@@ -110,14 +110,15 @@ int main(int argc, char **argv)
 {
   if (argc != 5)
   {
-    cout << "Syntax: " << argv[0] << " <data_file.txt> <out_types.txt> <first atom type> <second atom type>" << endl;
+    cout << "Syntax: " << argv[0]
+        << " <data_file.txt> <out_types.txt> <first atom type> <second atom type>"
+        << endl;
     return 1;
   }
 
   stuff some = readOutTypesTxt(argv[2], argv[3], argv[4]);
 
   printRDF(argv[1], some);
-
 
   return 0;
 }
