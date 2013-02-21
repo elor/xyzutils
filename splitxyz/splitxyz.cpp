@@ -108,10 +108,10 @@ int main(int argc, char **argv)
         --firststep;
       }
 
-      if (!out.is_open())
-      {
-        cout << "ignoring step " << step << endl;
-      }
+//      if (!out.is_open())
+//      {
+//        cout << "ignoring step " << step << endl;
+//      }
     }
 
     if (out.is_open())
