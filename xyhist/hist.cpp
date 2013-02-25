@@ -36,17 +36,7 @@ int readFile(const char *filename, binfield &out_binfield, const double binwidth
   char type[1024];
 
   file.getline(type, 1024);
-  if (strlen(type) == 0)
-  {
-    file.getline(type, 1024);
-  }
-
-  type[5] = '\0';
-
-  if (strcmp(type, "Atoms"))
-  {
-    throw runtime_error("are you sure that's an xyz file?");
-  }
+  file.getline(type, 1024);
 
   double x, y, z;
   size_t xbin, ybin;
@@ -74,6 +64,9 @@ int readFile(const char *filename, binfield &out_binfield, const double binwidth
     {
       throw runtime_error("end of xyz file reached prematurely");
     }
+
+    // discard possibly remaining values (vel, ...)
+    file.getline(type, 1023);
   }
 
   return numatoms;
