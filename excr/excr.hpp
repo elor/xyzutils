@@ -27,4 +27,3 @@ public:
   excr(char *input);
   ~excr();
 };
-
