@@ -2,47 +2,44 @@
 #include <fstream>
 #include <cstdlib>
 #include <cstring>
+#include <ArgumentParser.h>
 
 using namespace std;
 
+ArgumentParser args;
+
+void initArgs(int argc, char **argv)
+{
+  args.String("prefix", "", "filename prefix for output files", 'p');
+  args.UInt("step", 1, "step size between xyz frames.", 's');
+  args.UInt("first", 1, "first step to print", 'f');
+  args.UInt("digits", 3, "number of digits for output filename", 'd');
+  args.UInt("max", 0, "maximum number of output files. 0 = infinite", 'm');
+  args.Bool("help", false, "show help message", 'h');
+  args.Standalones(1, "input.xyz", "input file in xyz format");
+
+  args.parseArgs(argc, argv);
+
+  if (args.getBool("help") || args.getStandaloneCount() != 1)
+  {
+    args.displayHelpMessage();
+    exit(1);
+  }
+}
+
 int main(int argc, char **argv)
 {
-  if (argc <= 2)
-  {
-    cerr << "usage: " << argv[0] << " <file.xyz> [prefix] [stepsize] [firststep] [digits] [maxfiles]" << endl;
-    return 1;
-  }
+  initArgs(argc, argv);
 
-  const char *filename = argv[1];
-  char prefix[1024];
-  strcpy(prefix, filename);
-  size_t stepsize = 1;
-  size_t firststep = 1;
-  bool usemaxfiles = false;
-  size_t maxfiles = 0;
-  size_t digits = 3;
+  //        << " <file.xyz> [prefix] [stepsize] [firststep] [digits] [maxfiles]"
 
-  if (argc >= 3)
-  {
-    strcpy(prefix, argv[2]);
-  }
-  if (argc >= 4)
-  {
-    stepsize = atoi(argv[3]);
-  }
-  if (argc >= 5)
-  {
-    firststep = atoi(argv[4]);
-  }
-  if (argc >= 6)
-  {
-    digits = atoi(argv[5]);
-  }
-  if (argc >= 7)
-  {
-    maxfiles = atoi(argv[6]);
-    usemaxfiles = true;
-  }
+  const char *prefix = args.getCString("prefix");
+  size_t stepsize = args.getUInt("step");
+  size_t firststep = args.getUInt("first");
+  size_t digits = args.getUInt("digits");
+  size_t maxfiles = args.getUInt("max");
+  bool usemaxfiles = maxfiles != 0;
+  const char *filename = args.getCStandalone(0);
 
   ifstream file(filename);
 
@@ -55,7 +52,7 @@ int main(int argc, char **argv)
 
   ofstream out;
 
-  while(!file.eof())
+  while (!file.eof())
   {
     file.getline(line, 1024);
 
@@ -86,7 +83,8 @@ int main(int argc, char **argv)
           size_t n, i;
 
           memset(prezero, '0', 16);
-          for (i = 1, n = step; n >= 10; ++i, n/=10);
+          for (i = 1, n = step; n >= 10; ++i, n /= 10)
+            ;
 
           n = digits - i;
           if (n < 0 || n >= 16)
@@ -108,10 +106,10 @@ int main(int argc, char **argv)
         --firststep;
       }
 
-//      if (!out.is_open())
-//      {
-//        cout << "ignoring step " << step << endl;
-//      }
+      //      if (!out.is_open())
+      //      {
+      //        cout << "ignoring step " << step << endl;
+      //      }
     }
 
     if (out.is_open())
