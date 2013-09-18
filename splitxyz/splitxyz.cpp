@@ -15,12 +15,11 @@ void initArgs(int argc, char **argv)
   args.UInt("first", 1, "first step to print", 'f');
   args.UInt("digits", 3, "number of digits for output filename", 'd');
   args.UInt("max", 0, "maximum number of output files. 0 = infinite", 'm');
-  args.Bool("help", false, "show help message", 'h');
   args.Standalones(1, "input.xyz", "input file in xyz format");
 
   args.parseArgs(argc, argv);
 
-  if (args.getBool("help") || args.getStandaloneCount() != 1)
+  if (args.getStandaloneCount() != 1)
   {
     args.displayHelpMessage();
     exit(1);
