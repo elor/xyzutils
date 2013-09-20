@@ -15,7 +15,10 @@ void initArgs(int argc, char **argv)
   args.UInt("first", 1, "first step to print", 'f');
   args.UInt("digits", 3, "number of digits for output filename", 'd');
   args.UInt("max", 0, "maximum number of output files. 0 = infinite", 'm');
-  args.Standalones(1, "input.xyz", "input file in xyz format");
+  args.Standalones(
+      1,
+      "input.xyz",
+      "input file in xyz format. Please note that xyz files aren't properly validated prior to splitting.");
 
   args.parseArgs(argc, argv);
 
@@ -45,7 +48,6 @@ int main(int argc, char **argv)
   size_t atomsleft = 0;
   size_t step = 0;
   size_t actualstep = 0;
-  char prezero[16];
   char line[1024];
   char outfilename[1024];
 
@@ -79,21 +81,7 @@ int main(int argc, char **argv)
             --maxfiles;
           }
 
-          size_t n, i;
-
-          memset(prezero, '0', 16);
-          for (i = 1, n = step; n >= 10; ++i, n /= 10)
-            ;
-
-          n = digits - i;
-          if (n < 0 || n >= 16)
-          {
-            n = 0;
-          }
-
-          prezero[n] = '\0';
-
-          sprintf(outfilename, "%s%s%lu.xyz", prefix, prezero, step);
+          sprintf(outfilename, "%s%0*lu.xyz", prefix, (int) digits, step);
           out.open(outfilename);
           cout << "writing step " << step << " to file " << outfilename << endl;
         }
