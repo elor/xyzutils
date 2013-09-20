@@ -13,7 +13,7 @@ void initArgs(int argc, char **argv)
   args.String("prefix", "", "filename prefix for output files", 'p');
   args.UInt("step", 1, "step size between xyz frames.", 's');
   args.UInt("first", 1, "first step to print", 'f');
-  args.UInt("digits", 3, "number of digits for output filename", 'd');
+  args.UInt("digits", 0, "number of digits for output filename", 'd');
   args.UInt("max", 0, "maximum number of output files. 0 = infinite", 'm');
   args.Standalones(
       1,
