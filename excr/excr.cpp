@@ -5,14 +5,15 @@
 #include <cerrno>
 #include <stdexcept>
 
+#include <iostream>
+
 using namespace std;
 
 excr::excr(char *input)
 {
   createMap(input);
-  smap::iterator it;
+  smap::iterator it = props.find("Cycle");
 
-  it = props.find("Cycle");
   if (it == props.end())
   {
     throw runtime_error("Cycle data not found");
@@ -36,16 +37,28 @@ excr::excr(char *input)
   comment = new char[it->second.size() + 1];
   strcpy(comment, it->second.c_str());
 
-  it = props.find("Lattice");
+  it = props.find("Size");
   if (it == props.end())
   {
-    throw runtime_error("Cycle data not found");
+    // fallback to default exyz format
+    it = props.find("Lattice");
+    if (it == props.end())
+    {
+      throw runtime_error(
+          "neither Size nor Lattice data found in xyz comment line");
+    }
+    vector<double> vec = split(it->second.c_str());
+    xsize = vec[0];
+    ysize = vec[4];
+    height = vec[8];
   }
-
-  vector<double> vec = split(it->second.c_str());
-  xsize = vec[0];
-  ysize = vec[4];
-  height = vec[8];
+  else
+  {
+    vector<double> vec = split(it->second.c_str());
+    xsize = vec[0];
+    ysize = vec[1];
+    height = vec[2];
+  }
 }
 
 excr::~excr()
@@ -113,4 +126,3 @@ vector<double> excr::split(const char *str)
 
   return outvec;
 }
-
