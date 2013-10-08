@@ -11,12 +11,10 @@ using namespace std;
 
 Bond::Bond()
 {
-  omp_init_lock(&lock);
 }
 
 Bond::~Bond()
 {
-  omp_destroy_lock(&lock);
   file.close();
 }
 
@@ -30,9 +28,5 @@ void Bond::openFile(char *key)
 
 void Bond::write(double distance)
 {
-  omp_set_lock(&lock);
-
   file << distance << endl;
-
-  omp_unset_lock(&lock);
 }

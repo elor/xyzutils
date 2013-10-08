@@ -9,13 +9,11 @@
 #define BOND_H_
 
 #include <fstream>
-#include <omp.h>
 
 class Bond
 {
 private:
   std::ofstream file;
-  omp_lock_t lock;
 
 public:
   Bond();

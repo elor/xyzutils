@@ -3,9 +3,9 @@ OUT= xyzeval
 OBJ+= obj/main.o
 OBJ+= obj/Bond.o
 OBJ+= obj/BondMap.o
+OBJ+= obj/CoordinationHistogramData.o
 OBJ+= obj/Type.o
-
-OPT+= -fopenmp
+OBJ+= obj/excr.o
 
 BINDIR=/home/elor/usr/bin/
 LIBDIR=/home/elor/usr/lib/

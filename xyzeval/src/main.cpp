@@ -2,18 +2,21 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <omp.h>
 
 #include <Atom.hpp>
 #include <BondMap.hpp>
 #include <TypeVec.hpp>
 #include <ArgumentParser.h>
+#include <CoordinationHistogramData.hpp>
+#include <excr.hpp>
+#include <stdexcept>
 
 using namespace std;
 
 ofstream out("out_types.txt");
 
-int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms)
+int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms,
+    double **spaceSize)
 {
   ifstream file(filename);
 
@@ -32,6 +35,29 @@ int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms)
   char comment[1024];
   file.getline(comment, 1024); // discard \n
   file.getline(comment, 1024); // read comment
+
+  excr *commentData = NULL;
+  try
+  {
+    commentData = new excr(comment);
+  } catch (runtime_error&)
+  {
+    commentData = NULL;
+  }
+
+  if (commentData)
+  {
+    *spaceSize = new double[2];
+    (*spaceSize)[0] = commentData->xsize;
+    (*spaceSize)[1] = commentData->ysize;
+  }
+  else
+  {
+    *spaceSize = NULL;
+    cout
+        << "XYZ Comment doesn't contain spatial size. Assuming nonperiodic space."
+        << endl;
+  }
 
   double min[3] =
   { 0.0, 0.0, 0.0 };
@@ -100,49 +126,126 @@ int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms)
   return numatoms;
 }
 
-double getDistance(const Atom &a, const Atom &b)
+double getDistance(const Atom &a, const Atom &b, double *spaceSize)
 {
   double sum = 0.0;
   double tmp;
 
   for (int i = 0; i < 3; ++i)
   {
-    tmp = a.pos[i] - b.pos[i];
+    tmp = abs(a.pos[i] - b.pos[i]);
+
+    // minimum boundary condition
+    if (i != 2 && spaceSize && tmp > spaceSize[i] * 0.5)
+    {
+      tmp -= spaceSize[i];
+    }
+
     sum += tmp * tmp;
   }
 
   return sqrt(sum);
 }
 
-void printInteratomicDistances(Atom *atoms, int numatoms, const double cutoff,
-    BondMap *bonds)
+double getCutoff(size_t type1, size_t type2)
 {
-  // iterate from numatoms to 1
-  Bond *file;
-#pragma omp parallel private(file) default(shared)
+  // TODO read from external file or cli
+  switch (type1)
   {
-#pragma omp master
-    cout << "using " << omp_get_num_threads()
-        << " threads for distance calculations" << endl;
-#pragma omp for
-    for (int i = numatoms - 1; i > 0; --i)
+  case 0:
+    switch (type2)
     {
-      // iterate from j-1 to 0
-      for (int j = i - 1; j >= 0; --j)
-      {
-        double distance = getDistance(atoms[i], atoms[j]);
+    case 0:
+      return 3.7;
+    case 1:
+      return 2.2;
+    }
+  case 1:
+    switch (type2)
+    {
+    case 0:
+      return 2.2;
+    case 1:
+      return 3.2;
+    }
+  }
 
-        if (distance <= cutoff)
-        {
-          file = bonds->getFile(atoms[i].type, atoms[j].type);
-          file->write(distance);
-        }
+  return 0.0;
+}
+
+void writeCoordination(CoordinationHistogramData &coords, const TypeVec &types)
+{
+  ofstream coordsfile("coords.txt");
+
+  for (size_t type1 = 0; type1 < types.size(); ++type1)
+  {
+    for (size_t type2 = 0; type2 < types.size(); ++type2)
+    {
+      coordsfile << types[type1].name.c_str() << "-"
+          << types[type2].name.c_str() << "\t";
+
+      CoordinationHistogramData::Bins bins = coords.data[coords.getIndex(type1,
+          type2)];
+      for (CoordinationHistogramData::Bins::iterator it = bins.begin(); it
+          != bins.end(); ++it)
+      {
+        coordsfile << *it << " ";
       }
+      coordsfile << endl;
     }
   }
 }
 
-void printAtomTypes(const TypeVec &types)
+void writeInteratomics(Atom *atoms, int numatoms, const double globalCutoff,
+    const TypeVec &types, double *spaceSize)
+{
+  // iterate from numatoms to 1
+
+  BondMap bonds(types);
+  CoordinationHistogramData coords(types.size());
+
+  Bond *file;
+
+  size_t *count = new size_t[types.size()];
+
+  for (int i = numatoms - 1; i > 0; --i)
+  {
+    memset(count, '\0', sizeof(size_t) * types.size());
+
+    // iterate from j-1 to 0
+    for (int j = numatoms - 1; j >= 0; --j)
+    {
+      if (i == j)
+      {
+        continue;
+      }
+
+      double distance = getDistance(atoms[i], atoms[j], spaceSize);
+
+      if (distance <= globalCutoff)
+      {
+        file = bonds.getFile(atoms[i].type, atoms[j].type);
+        file->write(distance);
+      }
+
+      if (distance <= getCutoff(atoms[i].type, atoms[j].type))
+      {
+        count[atoms[j].type] += 1;
+      }
+    }
+
+    for (size_t j = 0; j < types.size(); ++j)
+    {
+      coords.addValue(atoms[i].type, j, count[j]);
+    }
+  }
+
+  writeCoordination(coords, types);
+
+  delete[] count;
+}
+
+void saveAtomTypes(const TypeVec &types)
 {
   for (TypeVec::const_iterator it = types.begin(); it != types.end(); ++it)
   {
@@ -182,25 +285,22 @@ int main(int argc, char **argv)
   }
 
   const char *filename = args.getCStandalone(0);
-  const double cutoff = args.getDouble("cutoff");
+  const double globalCutoff = args.getDouble("cutoff");
 
-  cout << "using cutoff of " << cutoff << endl;
-  cout << "reading file '" << filename << "'" << endl;
+  cout << "cutoff: " << globalCutoff << endl;
+  cout << "file : '" << filename << "'" << endl;
 
-  int numatoms = readFile(filename, &types, &atoms);
+  double *spaceSize = NULL;
 
-  cout << "printing type info (name, number of atoms)" << endl;
+  int numatoms = readFile(filename, &types, &atoms, &spaceSize);
+  saveAtomTypes(types);
+  writeInteratomics(atoms, numatoms, globalCutoff, types, spaceSize);
 
-  printAtomTypes(types);
-
-  cout << "creating bond map" << endl;
-
-  BondMap bonds(types);
-
-  cout << "writing interatomic distances to files. Please be patient." << endl;
-  printInteratomicDistances(atoms, numatoms, cutoff, &bonds);
-
-  cout << "done" << endl;
+  if (spaceSize)
+  {
+    delete[] spaceSize;
+    spaceSize = NULL;
+  }
 
   return 0;
 }
