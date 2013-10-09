@@ -8,8 +8,11 @@
 #include <TypeVec.hpp>
 #include <ArgumentParser.h>
 #include <CoordinationHistogramData.hpp>
+#include <SquareSelector.hpp>
+#include <utils.hpp>
 #include <excr.hpp>
 #include <stdexcept>
+#include <convert.hpp>
 
 using namespace std;
 
@@ -19,6 +22,7 @@ int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms,
     double **spaceSize)
 {
   ifstream file(filename);
+  bool readSpecies = out_types->size() == 0;
 
   if (!file.is_open())
   {
@@ -99,7 +103,18 @@ int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms,
     {
       if (it == out_types->end())
       {
-        out_types->push_back(Type(type, out_types->size()));
+        if (readSpecies)
+        {
+          out_types->push_back(Type(type, out_types->size()));
+        }
+        else
+        {
+          cerr << "unspecified species: " << type
+              << ". Please update your species list." << endl
+              << "For automatic detection, discard it along with coordinationCutoffs."
+              << endl;
+          exit(1);
+        }
         break;
       }
       else if (it->name.compare(type) == 0)
@@ -197,7 +212,8 @@ void writeCoordination(CoordinationHistogramData &coords, const TypeVec &types)
 }
 
 void writeInteratomics(Atom *atoms, int numatoms, const double globalCutoff,
-    const TypeVec &types, double *spaceSize)
+    const TypeVec &types, double *spaceSize,
+    const SquareSelector<double> &coordCutoffs)
 {
   // iterate from numatoms to 1
 
@@ -228,19 +244,26 @@ void writeInteratomics(Atom *atoms, int numatoms, const double globalCutoff,
         file->write(distance);
       }
 
-      if (distance <= getCutoff(atoms[i].type, atoms[j].type))
+      if (!coordCutoffs.empty() && distance <= coordCutoffs.select(
+          atoms[i].type, atoms[j].type))
       {
         count[atoms[j].type] += 1;
       }
     }
 
-    for (size_t j = 0; j < types.size(); ++j)
+    if (!coordCutoffs.empty())
     {
-      coords.addValue(atoms[i].type, j, count[j]);
+      for (size_t j = 0; j < types.size(); ++j)
+      {
+        coords.addValue(atoms[i].type, j, count[j]);
+      }
     }
   }
 
-  writeCoordination(coords, types);
+  if (!coordCutoffs.empty())
+  {
+    writeCoordination(coords, types);
+  }
 
   delete[] count;
 }
@@ -257,7 +280,17 @@ ArgumentParser args;
 
 void initArgs()
 {
-  args.Double("cutoff", "cutoff distance (type-independent)", 'c');
+  args.Double("cutoff", 10.0, "global cutoff distance", 'c');
+  args.String(
+      "species",
+      "",
+      "atomic species. Optional, but necessary for specific interatomic cutoffs",
+      's');
+  args.String(
+      "coordinationCutoffs",
+      "",
+      "cutoff distances between types. Handled as a line-representation of a matrix, i.e. species \"A B\" results in \"AA AB BA BB\". Requires species to be set.",
+      'C');
 
   args.Standalones(
       1,
@@ -265,18 +298,72 @@ void initArgs()
       "xyz file containing the atomic positions to analyze. Please note that only the first dataset of the file is considered.");
 }
 
+SquareSelector<double> getCoordCutoffs(const TypeVec &types)
+{
+  vector<string> cutstrs = strsplit(args.getCString("coordinationCutoffs"));
+
+  if (cutstrs.size() != 0)
+  {
+    if (types.size() == 0)
+    {
+      cerr << "coordinationCutoffs: species not defined" << endl;
+      exit(1);
+    }
+    if (cutstrs.size() < types.size() * types.size())
+    {
+      cerr
+          << "coordinationCutoffs: too few values. Must be number of species squared"
+          << endl;
+      exit(1);
+    }
+    if (cutstrs.size() > types.size() * types.size())
+    {
+      cerr
+          << "coordinationCutoffs: too many values. Must be number of species squared"
+          << endl;
+      exit(1);
+    }
+
+    vector<double> cutoffs(cutstrs.size());
+    for (size_t i = 0; i < cutstrs.size(); ++i)
+    {
+      double value;
+      if (convert(cutstrs[i].c_str(), &value))
+      {
+        cerr << "coordinationCutoffs: invalid double value '"
+            << cutstrs[i].c_str() << "'" << endl;
+        exit(1);
+      }
+
+      cutoffs[i] = value;
+    }
+    return SquareSelector<double> (cutoffs);
+  }
+
+  return SquareSelector<double> (vector<double> ());
+}
+
+TypeVec getTypes()
+{
+  TypeVec types;
+  // init types with predefined species (if any)
+  vector<string> species = strsplit(args.getCString("species"));
+  for (size_t i = 0; i < species.size(); ++i)
+  {
+    types.push_back(Type(species[i].c_str(), types.size()));
+  }
+
+  return types;
+}
+
 int main(int argc, char **argv)
 {
   initArgs();
   args.parseArgs(argc, argv);
 
-  TypeVec types;
+  TypeVec types = getTypes();
+  SquareSelector<double> coordCutoffs = getCoordCutoffs(types);
   Atom *atoms;
-
-  if (!args.allValuesSet("ERROR: %s not set\n"))
-  {
-    exit(1);
-  }
 
   if (args.getStandaloneCount() != 1)
   {
@@ -287,14 +374,12 @@ int main(int argc, char **argv)
   const char *filename = args.getCStandalone(0);
   const double globalCutoff = args.getDouble("cutoff");
 
-  cout << "cutoff: " << globalCutoff << endl;
-  cout << "file : '" << filename << "'" << endl;
-
   double *spaceSize = NULL;
 
   int numatoms = readFile(filename, &types, &atoms, &spaceSize);
   saveAtomTypes(types);
-  writeInteratomics(atoms, numatoms, globalCutoff, types, spaceSize);
+  writeInteratomics(atoms, numatoms, globalCutoff, types, spaceSize,
+      coordCutoffs);
 
   if (spaceSize)
   {

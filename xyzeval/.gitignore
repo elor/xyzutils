@@ -1,4 +1,5 @@
-obj
+obj/
+test/
 xyzeval
 *.xyz
 *.txt
