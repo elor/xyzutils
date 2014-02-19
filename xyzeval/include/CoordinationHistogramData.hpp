@@ -9,6 +9,7 @@
 #define COORDINATIONHISTOGRAMDATA_H_
 
 #include <vector>
+#include <cstdlib>
 
 class CoordinationHistogramData
 {

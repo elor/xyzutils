@@ -5,7 +5,7 @@
  *      Author: elor
  */
 
-#include "CoordinationCutoffs.h"
+#include <CoordinationCutoffs.hpp>
 
 CoordinationCutoffs::CoordinationCutoffs()
 {
