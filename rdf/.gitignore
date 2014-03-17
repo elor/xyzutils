@@ -7,6 +7,7 @@ aclocal.m4
 autom4te.cache/
 config.h
 config.h.in
+config.h.in~
 config.log
 config.status
 configure
@@ -16,3 +17,5 @@ missing
 src/.deps/
 src/.dirstamp
 stamp-h1
+.cproject
+.settings
