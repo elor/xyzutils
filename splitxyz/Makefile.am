@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS}
 
 #CPPFLAGS += -Iinclude
-CPPFLAGS += -fopenmp
+AM_CPPFLAGS = -fopenmp
 
 #lib_LTLIBRARIES = libTHIS.la
 #libArgumentParser_la_SOURCES = src/....cpp
