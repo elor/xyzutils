@@ -47,7 +47,7 @@ int main(int argc, char **argv)
   if (!useSTDOUT)
   {
     size_t length = strlen(outfile_argument);
-    for (size_t src = 0, trg = 0; src < length; src++, trg++)
+    for (size_t src = 0, trg = 0; src < length; ++src, ++trg)
     {
       if (outfile_argument[src] == '%')
       {
@@ -64,8 +64,8 @@ int main(int argc, char **argv)
           trg += strlen(anchor);
           useMultipleFiles = true;
         }
-        digits++;
-        src++;
+        ++digits;
+        ++src;
       }
       
       outfile_format[trg] = outfile_argument[src];
@@ -86,23 +86,20 @@ int main(int argc, char **argv)
   bool useLastStep = (laststep != 0);
   int numFiles = args.getStandaloneCount();
   bool useSTDIN = numFiles == 0;
-  char filename[BUFFERSIZE];
-  memset(filename, '\0', BUFFERSIZE);
-  if (!useSTDIN)
+
+  istream *input;
+
+  size_t currentFile = 0;
+
+  if (useSTDIN)
   {
-    strcpy(filename, args.getCStandalone(0));
-    if (numFiles > 1)
-    {
-      cerr << "multiple input files not yet supported" << endl;
-      exit(1);
-    }
+    input = &cin;
   }
-
-  // TODO: also read from stdin
-  assert(filename != NULL);
-  ifstream file(filename);
-
-  assert(file.is_open());
+  else
+  {
+    input = new ifstream(args.getCStandalone(currentFile));
+    assert(reinterpret_cast<ifstream*>(input)->is_open());
+  }
 
   size_t atomsleft = 0;
   size_t step = 0;
@@ -124,9 +121,36 @@ int main(int argc, char **argv)
 
   bool printLine = false;
 
-  while (file.is_open() && !file.eof())
+  while (true)
   {
-    file.getline(line, BUFFERSIZE);
+    if (input->eof())
+    {
+      if (useSTDIN)
+      {
+        break;
+      }
+      else
+      {
+        // select next input file
+        delete input;
+        input = NULL;
+        ++currentFile;
+        if (currentFile >= numFiles)
+        {
+          // last file reached;
+          break;
+        }
+        input = new ifstream(args.getCStandalone(currentFile));
+        assert(reinterpret_cast<ifstream*>(input)->is_open());
+      }
+    }
+
+    input->getline(line, BUFFERSIZE);
+    if (input->eof() && strlen(line) == 0)
+    {
+      // skip any empty lines at the end of a file
+      continue;
+    }
 
     if (atomsleft == 0)
     {
@@ -153,8 +177,11 @@ int main(int argc, char **argv)
           {
             assert(out == NULL);
 
+//            cerr << outfile_format << endl;
+//            cerr << digits << endl;
+
             sprintf(outfilename, outfile_format, (int) digits, step);
-            cerr << outfilename << endl;
+//            cerr << outfilename << endl;
             out = new ofstream(outfilename);
           }
 //          cout << "writing step " << step << " to file " << outfilename << endl;
