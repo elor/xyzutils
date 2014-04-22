@@ -15,7 +15,7 @@ ArgumentParser args;
 
 void initArgs(int argc, char **argv)
 {
-  args.String("output", "", "filename for output file(s). Leave empty for STDOUT. If it contains a series of '#', each step will be contained within its own file, where '#' is replaced with the step number", 'o');
+  args.String("out", "", "filename for output file(s). Leave empty for STDOUT. If it contains a series of '#', each step will be contained within its own file, where '#' is replaced with the step number", 'o');
   args.UInt("step", 1, "step size", 's');
   args.UInt("begin", 1, "first step to print. Starts at 1.", 'b');
   args.UInt("end", 0, "last step to print. 0 = infinite", 'e');
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 
   char outfile_format[BUFFERSIZE];
   memset(outfile_format, '\0', BUFFERSIZE);
-  const char *outfile_argument = args.getCString("output");
+  const char *outfile_argument = args.getCString("out");
   bool useSTDOUT = outfile_argument == NULL || strlen(outfile_argument) == 0;
 
   size_t digits = 0;
