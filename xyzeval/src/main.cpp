@@ -19,7 +19,7 @@ using namespace std;
 ofstream out("out_types.txt");
 
 int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms,
-    double **spaceSize)
+  double **spaceSize)
 {
   ifstream file(filename);
   bool readSpecies = out_types->size() == 0;
@@ -54,19 +54,16 @@ int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms,
     *spaceSize = new double[2];
     (*spaceSize)[0] = commentData->xsize;
     (*spaceSize)[1] = commentData->ysize;
-  }
-  else
+  } else
   {
     *spaceSize = NULL;
     cout
-        << "XYZ Comment doesn't contain spatial size. Assuming nonperiodic space."
-        << endl;
+      << "XYZ Comment doesn't contain spatial size. Assuming nonperiodic space."
+      << endl;
   }
 
-  double min[3] =
-  { 0.0, 0.0, 0.0 };
-  double max[3] =
-  { 0.0, 0.0, 0.0 };
+  double min[3] = { 0.0, 0.0, 0.0 };
+  double max[3] = { 0.0, 0.0, 0.0 };
   bool unset = true;
 
   for (int i = 0; i < numatoms; ++i)
@@ -83,16 +80,14 @@ int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms,
         min[k] = max[k] = atoms[i].pos[k];
       }
       unset = false;
-    }
-    else
+    } else
     {
       for (int k = 0; k < 3; ++k)
       {
         if (min[k] > atoms[i].pos[k])
         {
           min[k] = atoms[i].pos[k];
-        }
-        else if (max[k] < atoms[i].pos[k])
+        } else if (max[k] < atoms[i].pos[k])
         {
           max[k] = atoms[i].pos[k];
         }
@@ -106,18 +101,16 @@ int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms,
         if (readSpecies)
         {
           out_types->push_back(Type(type, out_types->size()));
-        }
-        else
+        } else
         {
           cerr << "unspecified species: " << type
-              << ". Please update your species list." << endl
-              << "For automatic detection, discard it along with coordinationCutoffs."
-              << endl;
+            << ". Please update your species list." << endl
+            << "For automatic detection, discard it along with coordinationCutoffs."
+            << endl;
           exit(1);
         }
         break;
-      }
-      else if (it->name.compare(type) == 0)
+      } else if (it->name.compare(type) == 0)
       {
         atoms[i].type = it->id;
         ++(it->count);
@@ -134,7 +127,7 @@ int readFile(const char *filename, TypeVec *out_types, Atom **out_atoms,
 
   //  cerr << "min[0] max[0] min[1] max[1] min[2] max[2]" << endl;
   out << min[0] << " " << max[0] << "\t" << min[1] << " " << max[1] << "\t"
-      << min[2] << " " << max[2] << endl;
+    << min[2] << " " << max[2] << endl;
 
   *out_atoms = atoms;
 
@@ -174,7 +167,10 @@ double getCutoff(size_t type1, size_t type2)
       return 3.7;
     case 1:
       return 2.2;
+    default:
+      break;
     }
+    break;
   case 1:
     switch (type2)
     {
@@ -182,7 +178,12 @@ double getCutoff(size_t type1, size_t type2)
       return 2.2;
     case 1:
       return 3.2;
+    default:
+      break;
     }
+    break;
+  default:
+    break;
   }
 
   return 0.0;
@@ -197,12 +198,12 @@ void writeCoordination(CoordinationHistogramData &coords, const TypeVec &types)
     for (size_t type2 = 0; type2 < types.size(); ++type2)
     {
       coordsfile << types[type1].name.c_str() << "-"
-          << types[type2].name.c_str() << "\t";
+        << types[type2].name.c_str() << "\t";
 
       CoordinationHistogramData::Bins bins = coords.data[coords.getIndex(type1,
-          type2)];
-      for (CoordinationHistogramData::Bins::iterator it = bins.begin(); it
-          != bins.end(); ++it)
+        type2)];
+      for (CoordinationHistogramData::Bins::iterator it = bins.begin();
+        it != bins.end(); ++it)
       {
         coordsfile << *it << " ";
       }
@@ -212,8 +213,8 @@ void writeCoordination(CoordinationHistogramData &coords, const TypeVec &types)
 }
 
 void writeInteratomics(Atom *atoms, int numatoms, const double globalCutoff,
-    const TypeVec &types, double *spaceSize,
-    const SquareSelector<double> &coordCutoffs)
+  const TypeVec &types, double *spaceSize,
+  const SquareSelector<double> &coordCutoffs)
 {
   // iterate from numatoms to 1
 
@@ -244,8 +245,8 @@ void writeInteratomics(Atom *atoms, int numatoms, const double globalCutoff,
         file->write(distance);
       }
 
-      if (!coordCutoffs.empty() && distance <= coordCutoffs.select(
-          atoms[i].type, atoms[j].type))
+      if (!coordCutoffs.empty()
+        && distance <= coordCutoffs.select(atoms[i].type, atoms[j].type))
       {
         count[atoms[j].type] += 1;
       }
@@ -281,21 +282,15 @@ ArgumentParser args;
 void initArgs()
 {
   args.Double("cutoff", 10.0, "global cutoff distance", 'c');
-  args.String(
-      "species",
-      "",
-      "atomic species. Optional, but necessary for specific interatomic cutoffs",
-      's');
-  args.String(
-      "coordinationCutoffs",
-      "",
-      "cutoff distances between types. Handled as a line-representation of a matrix, i.e. species \"A B\" results in \"AA AB BA BB\". Requires species to be set.",
-      'C');
+  args.String("species", "",
+    "atomic species. Optional, but necessary for specific interatomic cutoffs",
+    's');
+  args.String("coordinationCutoffs", "",
+    "cutoff distances between types. Handled as a line-representation of a matrix, i.e. species \"A B\" results in \"AA AB BA BB\". Requires species to be set.",
+    'C');
 
-  args.Standalones(
-      1,
-      "input.xyz",
-      "xyz file containing the atomic positions to analyze. Please note that only the first dataset of the file is considered.");
+  args.Standalones(1, "input.xyz",
+    "xyz file containing the atomic positions to analyze. Please note that only the first dataset of the file is considered.");
 }
 
 SquareSelector<double> getCoordCutoffs(const TypeVec &types)
@@ -312,15 +307,15 @@ SquareSelector<double> getCoordCutoffs(const TypeVec &types)
     if (cutstrs.size() < types.size() * types.size())
     {
       cerr
-          << "coordinationCutoffs: too few values. Must be number of species squared"
-          << endl;
+        << "coordinationCutoffs: too few values. Must be number of species squared"
+        << endl;
       exit(1);
     }
     if (cutstrs.size() > types.size() * types.size())
     {
       cerr
-          << "coordinationCutoffs: too many values. Must be number of species squared"
-          << endl;
+        << "coordinationCutoffs: too many values. Must be number of species squared"
+        << endl;
       exit(1);
     }
 
@@ -331,16 +326,16 @@ SquareSelector<double> getCoordCutoffs(const TypeVec &types)
       if (convert(cutstrs[i].c_str(), &value))
       {
         cerr << "coordinationCutoffs: invalid double value '"
-            << cutstrs[i].c_str() << "'" << endl;
+          << cutstrs[i].c_str() << "'" << endl;
         exit(1);
       }
 
       cutoffs[i] = value;
     }
-    return SquareSelector<double> (cutoffs);
+    return SquareSelector<double>(cutoffs);
   }
 
-  return SquareSelector<double> (vector<double> ());
+  return SquareSelector<double>(vector<double>());
 }
 
 TypeVec getTypes()
@@ -379,7 +374,7 @@ int main(int argc, char **argv)
   int numatoms = readFile(filename, &types, &atoms, &spaceSize);
   saveAtomTypes(types);
   writeInteratomics(atoms, numatoms, globalCutoff, types, spaceSize,
-      coordCutoffs);
+    coordCutoffs);
 
   if (spaceSize)
   {
